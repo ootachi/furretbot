@@ -1,3 +1,5 @@
+(* furretbot/query.ml *)
+
 type axis =
 | AX_self
 | AX_descendant_or_self
