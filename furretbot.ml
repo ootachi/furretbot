@@ -1,7 +1,6 @@
 (* furretbot/furretbot.ml *)
 
 let handle_art_sites fa pixiv conn msg =
-    Std.print msg;
     match msg with
     | Irc.MS_privmsg(target, msg) when Fa.has_view_link msg ->
         begin
@@ -39,12 +38,35 @@ let handle_art_sites fa pixiv conn msg =
         end
     | _ -> false
 
+let handle_youtube conn msg =
+    match msg with
+    | Irc.MS_privmsg(target, msg) when Youtube.has_view_link msg ->
+        begin
+            try
+                let video = Youtube.get_video (Youtube.find_view_link msg) in
+                let plural n = if n == 1 then "" else "s" in
+                let response = Printf.sprintf
+                    "YouTube video %s: %s by %s (%d view%s, %d favorite%s)"
+                    video.Youtube.vi_id
+                    video.Youtube.vi_title
+                    video.Youtube.vi_author
+                    video.Youtube.vi_views
+                    (plural video.Youtube.vi_views)
+                    video.Youtube.vi_favorites
+                    (plural video.Youtube.vi_favorites) in
+                Irc.send conn (Irc.MS_privmsg(target, response));
+                true
+            with _ -> false
+        end
+    | _ -> false
+
 let run fa_info pixiv_info conn_info =
     let sock = Irc.connect conn_info in
     try
         let handlers = [
             Irc.Bot.base_handler;
-            handle_art_sites fa_info pixiv_info
+            handle_art_sites fa_info pixiv_info;
+            handle_youtube
         ] in
         Std.finally (fun() -> Irc.close sock) (Irc.Bot.run sock) handlers
     with

@@ -53,11 +53,11 @@ let login_if_necessary fa =
     if not (Sys.file_exists fa.fa_cookiestore) then login fa
 
 let view_link_re =
-    lazy (Str.regexp ".*furaffinity\\.net/view/\\([0-9]+\\)")
+    lazy (Str.regexp ".*furaffinity\\.net/\\(view\\|full\\)/\\([0-9]+\\)")
 let has_view_link str = Str.string_match (Lazy.force view_link_re) str 0
 let find_view_link str =
     ignore (Str.string_match (Lazy.force view_link_re) str 0);
-    int_of_string (Str.matched_group 1 str)
+    int_of_string (Str.matched_group 2 str)
 
 let url_of_submission id =
     Printf.sprintf "http://www.furaffinity.net/view/%d/" id
