@@ -1,30 +1,51 @@
 (* furretbot/furretbot.ml *)
 
-let handle_fa_link fa conn msg =
+let handle_art_sites fa pixiv conn msg =
     Std.print msg;
-    try
-        match msg with
-        | Irc.MS_privmsg(target, msg) when Fa.has_view_link msg ->
-            let sub = Fa.get_submission fa (Fa.find_view_link msg) in
-            let plural n = if n == 1 then "" else "s" in
-            let response = Printf.sprintf
-                "FA submission %d: %s by %s (%d view%s, %d fave%s)"
-                sub.Fa.su_id
-                sub.Fa.su_title
-                sub.Fa.su_artist
-                sub.Fa.su_views
-                (plural sub.Fa.su_views)
-                sub.Fa.su_faves
-                (plural sub.Fa.su_faves) in
-            Irc.send conn (Irc.MS_privmsg(target, response));
-            true
-        | _ -> false
-    with _ -> false
+    match msg with
+    | Irc.MS_privmsg(target, msg) when Fa.has_view_link msg ->
+        begin
+            try
+                let sub = Fa.get_submission fa (Fa.find_view_link msg) in
+                let plural n = if n == 1 then "" else "s" in
+                let response = Printf.sprintf
+                    "FA submission %d: %s by %s (%d view%s, %d fave%s)"
+                    sub.Fa.su_id
+                    sub.Fa.su_title
+                    sub.Fa.su_artist
+                    sub.Fa.su_views
+                    (plural sub.Fa.su_views)
+                    sub.Fa.su_faves
+                    (plural sub.Fa.su_faves) in
+                Irc.send conn (Irc.MS_privmsg(target, response));
+                true
+            with _ -> false
+        end
+    | Irc.MS_privmsg(target, msg) when Pixiv.has_view_link msg ->
+        begin
+            try
+                let illust =
+                    Pixiv.get_illust pixiv (Pixiv.find_view_link msg) in
+                let response = Printf.sprintf
+                    "Pixiv illust. %d: %s (%s) by %s (%s)"
+                    illust.Pixiv.il_id
+                    illust.Pixiv.il_title_ja
+                    illust.Pixiv.il_title_en
+                    illust.Pixiv.il_artist_ja
+                    illust.Pixiv.il_artist_en in
+                Irc.send conn (Irc.MS_privmsg(target, response));
+                true
+            with _ -> false
+        end
+    | _ -> false
 
-let run fa_info conn_info =
+let run fa_info pixiv_info conn_info =
     let sock = Irc.connect conn_info in
     try
-        let handlers = [ Irc.Bot.base_handler; handle_fa_link fa_info ] in
+        let handlers = [
+            Irc.Bot.base_handler;
+            handle_art_sites fa_info pixiv_info
+        ] in
         Std.finally (fun() -> Irc.close sock) (Irc.Bot.run sock) handlers
     with
     | Irc.Disconnected -> exit 1
@@ -58,6 +79,11 @@ let main() =
         Fa.fa_username = config#getval "FA" "username";
         Fa.fa_password = rot13(config#getval "FA" "password")
     } in
+    let pixiv_info = {
+        Pixiv.pi_cookiestore = config#getval "Pixiv" "cookiestore";
+        Pixiv.pi_username = config#getval "Pixiv" "username";
+        Pixiv.pi_password = rot13(config#getval "Pixiv" "password")
+    } in
     let conn_info = {
         Irc.ci_serverhost = config#getval "IRC" "serverhost";
         Irc.ci_serverport = int_of_string (config#getval "IRC" "serverport");
@@ -68,7 +94,7 @@ let main() =
             ExtString.String.nsplit (config#getval "IRC" "autojoin") " "
     } in
 
-    run fa_info conn_info
+    run fa_info pixiv_info conn_info
 ;;
 
 main()

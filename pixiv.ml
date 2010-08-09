@@ -1,13 +1,46 @@
 (* furretbot/pixiv.ml *)
 
-let buffer_writefunction buf s = Buffer.add_string buf s; String.length s
+type t = {
+    pi_cookiestore: string;
+    pi_username: string;
+    pi_password: string
+}
 
 type illust = {
+    il_id: int;
     il_artist_ja: string;
     il_artist_en: string;
     il_title_ja: string;
     il_title_en: string
 }
+
+let with_curl_request pixiv f =
+    let req = Curl.init() in
+    Std.finally (fun() -> Curl.cleanup req) begin fun() ->
+        Curl.set_cookiefile req pixiv.pi_cookiestore;
+        Curl.set_cookiejar req pixiv.pi_cookiestore;
+        Curl.set_verbose req true;
+        f req
+    end ()
+
+let login pixiv =
+    with_curl_request pixiv begin fun req ->
+        Curl.set_url req "http://www.pixiv.net/index.php";
+        Curl.set_post req true;
+        Curl.set_referer req "http://www.pixiv.net/index.php";
+        let post =
+            Netencoding.Url.mk_url_encoded_parameters [
+                ("mode", "login");
+                ("pixiv_id", pixiv.pi_username);
+                ("pass", pixiv.pi_password)
+            ]
+        in
+        Curl.set_postfields req post;
+        Curl.perform req
+    end
+
+let login_if_necessary pixiv =
+    if not (Sys.file_exists pixiv.pi_cookiestore) then login pixiv
 
 let view_link_re =
     lazy (Str.regexp
@@ -23,19 +56,19 @@ let url_of_illust id =
     Printf.sprintf
         "http://www.pixiv.net/member_illust.php?mode=medium&illust_id=%d" id
 
-let get_illust id =
+let get_illust pixiv id =
+    login_if_necessary pixiv;
+
     let url = url_of_illust id in
 
     let buf = Buffer.create 0 in
-    let req = Curl.init() in
-    Std.finally (fun() -> Curl.cleanup req) begin fun() ->
-        Curl.set_verbose req true;
+    let write_to_buf s = Buffer.add_string buf s; String.length s in
+
+    with_curl_request pixiv begin fun req ->
         Curl.set_url req url;
-        Curl.setopt req (Curl.CURLOPT_USERAGENT
-            "Mozilla/4.0 (compatible; U; MSIE 6.0; Windows NT 5.1)");
-        Curl.set_writefunction req (buffer_writefunction buf);
+        Curl.set_writefunction req write_to_buf;
         Curl.perform req
-    end();
+    end;
 
     let body = Buffer.contents buf in
     let html = Nethtml.parse (new Netchannels.input_string body) in
@@ -60,6 +93,7 @@ let get_illust id =
             title_ja in
 
     {
+        il_id = id;
         il_artist_ja = artist_ja;
         il_artist_en = artist_en;
         il_title_ja = title_ja;
