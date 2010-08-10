@@ -3,61 +3,48 @@
 let handle_art_sites fa pixiv conn msg =
     match msg with
     | Irc.MS_privmsg(target, msg) when Fa.has_view_link msg ->
-        begin
-            try
-                let sub = Fa.get_submission fa (Fa.find_view_link msg) in
-                let plural n = if n == 1 then "" else "s" in
-                let response = Printf.sprintf
-                    "FA submission %d: %s by %s (%d view%s, %d fave%s)"
-                    sub.Fa.su_id
-                    sub.Fa.su_title
-                    sub.Fa.su_artist
-                    sub.Fa.su_views
-                    (plural sub.Fa.su_views)
-                    sub.Fa.su_faves
-                    (plural sub.Fa.su_faves) in
-                Irc.send conn (Irc.MS_privmsg(target, response));
-                true
-            with _ -> false
-        end
+        let sub = Fa.get_submission fa (Fa.find_view_link msg) in
+        let plural n = if n == 1 then "" else "s" in
+        let response = Printf.sprintf
+            "FA submission %d: %s by %s (%d view%s, %d fave%s)"
+            sub.Fa.su_id
+            sub.Fa.su_title
+            sub.Fa.su_artist
+            sub.Fa.su_views
+            (plural sub.Fa.su_views)
+            sub.Fa.su_faves
+            (plural sub.Fa.su_faves) in
+        Irc.send conn (Irc.MS_privmsg(target, response));
+        true
     | Irc.MS_privmsg(target, msg) when Pixiv.has_view_link msg ->
-        begin
-            try
-                let illust =
-                    Pixiv.get_illust pixiv (Pixiv.find_view_link msg) in
-                let response = Printf.sprintf
-                    "Pixiv illust. %d: %s (%s) by %s (%s)"
-                    illust.Pixiv.il_id
-                    illust.Pixiv.il_title_ja
-                    illust.Pixiv.il_title_en
-                    illust.Pixiv.il_artist_ja
-                    illust.Pixiv.il_artist_en in
-                Irc.send conn (Irc.MS_privmsg(target, response));
-                true
-            with _ -> false
-        end
+        let illust = Pixiv.get_illust pixiv (Pixiv.find_view_link msg) in
+        let response = Printf.sprintf
+            "Pixiv illust. %d: %s (%s) by %s (%s)"
+            illust.Pixiv.il_id
+            illust.Pixiv.il_title_ja
+            illust.Pixiv.il_title_en
+            illust.Pixiv.il_artist_ja
+            illust.Pixiv.il_artist_en in
+        Irc.send conn (Irc.MS_privmsg(target, response));
+        true
     | _ -> false
 
 let handle_youtube conn msg =
     match msg with
     | Irc.MS_privmsg(target, msg) when Youtube.has_view_link msg ->
-        begin
-            try
-                let video = Youtube.get_video (Youtube.find_view_link msg) in
-                let plural n = if n == 1 then "" else "s" in
-                let response = Printf.sprintf
-                    "YouTube video %s: %s by %s (%d view%s, %d favorite%s)"
-                    video.Youtube.vi_id
-                    video.Youtube.vi_title
-                    video.Youtube.vi_author
-                    video.Youtube.vi_views
-                    (plural video.Youtube.vi_views)
-                    video.Youtube.vi_favorites
-                    (plural video.Youtube.vi_favorites) in
-                Irc.send conn (Irc.MS_privmsg(target, response));
-                true
-            with _ -> false
-        end
+        let video = Youtube.get_video (Youtube.find_view_link msg) in
+        let plural n = if n == 1 then "" else "s" in
+        let response = Printf.sprintf
+            "YouTube video %s: %s by %s (%d view%s, %d favorite%s)"
+            video.Youtube.vi_id
+            video.Youtube.vi_title
+            video.Youtube.vi_author
+            video.Youtube.vi_views
+            (plural video.Youtube.vi_views)
+            video.Youtube.vi_favorites
+            (plural video.Youtube.vi_favorites) in
+        Irc.send conn (Irc.MS_privmsg(target, response));
+        true
     | _ -> false
 
 let run fa_info pixiv_info conn_info =

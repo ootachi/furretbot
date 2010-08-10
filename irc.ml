@@ -144,7 +144,16 @@ module Bot = struct
         while true do
             let msg = recv sock in
             try
-                let try_handler f = if f sock msg then raise Exit in
+                let try_handler f =
+                    if
+                        try
+                            f sock msg
+                        with e ->
+                            prerr_endline (Printexc.to_string e);
+                            false
+                    then
+                        raise Exit
+                in
                 List.iter try_handler handlers
             with Exit -> ()
         done

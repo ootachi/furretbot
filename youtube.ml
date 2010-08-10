@@ -1,6 +1,6 @@
 (* furretbot/youtube.ml *)
 
-let view_link_re = lazy (Str.regexp ".*youtube\\.com/watch\\?\\([^ \t\013\n]+\\)")
+let view_link_re = lazy (Str.regexp ".*youtube\\.com/watch\\?\\([^ #\t\013\n]+\\)")
 
 type video_info = {
     vi_id: string;
