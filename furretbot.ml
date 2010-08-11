@@ -14,6 +14,8 @@ let handle_art_sites fa pixiv conn msg =
             (plural sub.Fa.su_views)
             sub.Fa.su_faves
             (plural sub.Fa.su_faves) in
+        Std.print msg;
+        Std.print(target, response);
         Irc.send conn (Irc.MS_privmsg(target, response));
         true
     | Irc.MS_privmsg(target, msg) when Pixiv.has_view_link msg ->
@@ -25,6 +27,8 @@ let handle_art_sites fa pixiv conn msg =
             illust.Pixiv.il_title_en
             illust.Pixiv.il_artist_ja
             illust.Pixiv.il_artist_en in
+        Std.print msg;
+        Std.print(target, response);
         Irc.send conn (Irc.MS_privmsg(target, response));
         true
     | _ -> false
@@ -43,6 +47,8 @@ let handle_youtube conn msg =
             (plural video.Youtube.vi_views)
             video.Youtube.vi_favorites
             (plural video.Youtube.vi_favorites) in
+        Std.print msg;
+        Std.print(target, response);
         Irc.send conn (Irc.MS_privmsg(target, response));
         true
     | _ -> false

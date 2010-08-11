@@ -39,9 +39,6 @@ let login pixiv =
         Curl.perform req
     end
 
-let login_if_necessary pixiv =
-    if not (Sys.file_exists pixiv.pi_cookiestore) then login pixiv
-
 let view_link_re =
     lazy (Str.regexp
         ".*pixiv\\.net/member_illust\\.php\\?.*illust_id=\\([0-9]+\\)")
@@ -57,7 +54,7 @@ let url_of_illust id =
         "http://www.pixiv.net/member_illust.php?mode=medium&illust_id=%d" id
 
 let get_illust pixiv id =
-    login_if_necessary pixiv;
+    login pixiv;
 
     let url = url_of_illust id in
 

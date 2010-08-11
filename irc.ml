@@ -48,7 +48,9 @@ let deparse msg =
         | MS_ping cookie -> "PING", [| cookie |]
         | MS_pong cookie -> "PONG", [| cookie |]
         | MS_quit msg -> "QUIT", [| msg |]
-        | MS_custom(verb, args) -> verb, args
+        | MS_custom(verb, args) ->
+            Std.print("deparsing custom message", verb, args);
+            verb, args
     in
     let last_arg_idx = Array.length args - 1 in
     if String.contains args.(last_arg_idx) ' ' then
@@ -76,7 +78,6 @@ let parse str =
     let verb_and_args = ExtString.String.nsplit verb_and_args " " in
     let verb = List.hd verb_and_args in
     let args = DynArray.of_list (List.tl verb_and_args) in
-    Std.print ("long_arg", long_arg);
     Option.may (DynArray.add args) long_arg;
     try
         match verb with
@@ -100,7 +101,6 @@ let parse str =
 
 let send sock msg =
     let str = deparse msg in
-    Std.print str;
     Netsys.really_write sock str 0 (String.length str)
 
 let recv sock =
@@ -111,7 +111,6 @@ let recv sock =
         Buffer.add_string buf ch
     done;
     let str = Buffer.contents buf in
-    Std.print str;
     parse str
 
 let close sock =
