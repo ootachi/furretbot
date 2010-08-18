@@ -11,7 +11,6 @@ let translate
     let req = Curl.init() in
     Std.finally (fun() -> Curl.cleanup req) begin fun() ->
         Curl.set_referer req referrer;
-        Curl.set_verbose req true;
         Curl.set_url req
             (Printf.sprintf
                 "http://ajax.googleapis.com/ajax/services/language/\

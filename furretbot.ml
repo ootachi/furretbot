@@ -1,6 +1,6 @@
 (* furretbot/furretbot.ml *)
 
-let handle_art_sites fa pixiv conn msg =
+let handle_art_sites fa conn msg =
     match msg with
     | Irc.MS_privmsg(target, msg) when Fa.has_view_link msg ->
         let sub = Fa.get_submission fa (Fa.find_view_link msg) in
@@ -19,14 +19,14 @@ let handle_art_sites fa pixiv conn msg =
         Irc.send conn (Irc.MS_privmsg(target, response));
         true
     | Irc.MS_privmsg(target, msg) when Pixiv.has_view_link msg ->
-        let illust = Pixiv.get_illust pixiv (Pixiv.find_view_link msg) in
+        let illust = Pixiv.get_illust (Pixiv.find_view_link msg) in
         let response = Printf.sprintf
             "Pixiv illust. %d: %s (%s) by %s (%s)"
             illust.Pixiv.il_id
-            illust.Pixiv.il_title_ja
-            illust.Pixiv.il_title_en
-            illust.Pixiv.il_artist_ja
-            illust.Pixiv.il_artist_en in
+            (fst illust.Pixiv.il_title)
+            (snd illust.Pixiv.il_title)
+            (fst illust.Pixiv.il_artist)
+            (snd illust.Pixiv.il_artist) in
         Std.print msg;
         Std.print(target, response);
         Irc.send conn (Irc.MS_privmsg(target, response));
@@ -53,12 +53,12 @@ let handle_youtube conn msg =
         true
     | _ -> false
 
-let run fa_info pixiv_info conn_info =
+let run fa_info conn_info =
     let sock = Irc.connect conn_info in
     try
         let handlers = [
             Irc.Bot.base_handler;
-            handle_art_sites fa_info pixiv_info;
+            handle_art_sites fa_info;
             handle_youtube
         ] in
         Std.finally (fun() -> Irc.close sock) (Irc.Bot.run sock) handlers
@@ -94,11 +94,6 @@ let main() =
         Fa.fa_username = config#getval "FA" "username";
         Fa.fa_password = rot13(config#getval "FA" "password")
     } in
-    let pixiv_info = {
-        Pixiv.pi_cookiestore = config#getval "Pixiv" "cookiestore";
-        Pixiv.pi_username = config#getval "Pixiv" "username";
-        Pixiv.pi_password = rot13(config#getval "Pixiv" "password")
-    } in
     let conn_info = {
         Irc.ci_serverhost = config#getval "IRC" "serverhost";
         Irc.ci_serverport = int_of_string (config#getval "IRC" "serverport");
@@ -109,7 +104,7 @@ let main() =
             ExtString.String.nsplit (config#getval "IRC" "autojoin") " "
     } in
 
-    run fa_info pixiv_info conn_info
+    run fa_info conn_info
 ;;
 
 main()
