@@ -1,10 +1,33 @@
 (* furretbot/furretbot.ml *)
 
+let truncate lyst max =
+    let rec recur lyst n =
+        match lyst with
+        | [] -> []
+        | _ when n == max -> [ "..." ]
+        | first::rest -> first::(recur rest (n + 1))
+    in
+    recur lyst 0
+
+let plural n = if n == 1 then "" else "s"
+
 let handle_art_sites fa conn msg =
+    let handle_danbooru domain site_name target msg =
+        let id = Danbooru.find_view_link domain msg in
+        let post = Danbooru.get_post domain id in
+        let response = Printf.sprintf "%s post %d: %s (%d point%s)"
+            site_name
+            id
+            (String.concat ", " (truncate post.Danbooru.po_tags 15))
+            post.Danbooru.po_score
+            (plural post.Danbooru.po_score)
+        in
+        Std.print (msg, target, response);
+        Irc.send conn (Irc.MS_privmsg(target, response))
+    in
     match msg with
     | Irc.MS_privmsg(target, msg) when Fa.has_view_link msg ->
         let sub = Fa.get_submission fa (Fa.find_view_link msg) in
-        let plural n = if n == 1 then "" else "s" in
         let response = Printf.sprintf
             "FA submission %d: %s by %s (%d view%s, %d fave%s)"
             sub.Fa.su_id
@@ -31,13 +54,15 @@ let handle_art_sites fa conn msg =
         Std.print(target, response);
         Irc.send conn (Irc.MS_privmsg(target, response));
         true
+    | Irc.MS_privmsg(target, msg)
+            when Danbooru.has_view_link "wildcritters.ws" msg ->
+        handle_danbooru "wildcritters.ws" "WildCritters" target msg; true
     | _ -> false
 
 let handle_youtube conn msg =
     match msg with
     | Irc.MS_privmsg(target, msg) when Youtube.has_view_link msg ->
         let video = Youtube.get_video (Youtube.find_view_link msg) in
-        let plural n = if n == 1 then "" else "s" in
         let response = Printf.sprintf
             "YouTube video %s: %s by %s (%d view%s, %d favorite%s)"
             video.Youtube.vi_id

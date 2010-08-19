@@ -18,7 +18,7 @@ let find_view_link domain str =
 let api_url_of_post domain id =
     Printf.sprintf "http://%s/post/index.json?tags=id:%d" domain id
 
-let get_post domain (id:int) : post =
+let get_post domain id =
     let body = Http_client.Convenience.http_get (api_url_of_post domain id) in
     let data = Json_io.json_of_string ~big_int_mode:true body in
     let result = Json_type.Browse.array data in
