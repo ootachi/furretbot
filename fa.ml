@@ -19,6 +19,14 @@ type submission = {
     su_views: int
 }
 
+type journal = {
+    jo_id: int;
+    jo_url: string;
+    jo_title: string;
+    jo_author: string;
+    jo_comments: int
+}
+
 let with_curl_request fa f =
     let req = Curl.init() in
     Std.finally (fun() -> Curl.cleanup req) begin fun() ->
@@ -54,13 +62,23 @@ let login_if_necessary fa =
 
 let view_link_re =
     lazy (Str.regexp ".*furaffinity\\.net/\\(view\\|full\\)/\\([0-9]+\\)")
+let journal_link_re =
+    lazy (Str.regexp ".*furaffinity\\.net/journal/\\([0-9]+\\)")
+
 let has_view_link str = Str.string_match (Lazy.force view_link_re) str 0
+let has_journal_link str = Str.string_match (Lazy.force journal_link_re) str 0
+
 let find_view_link str =
-    ignore (Str.string_match (Lazy.force view_link_re) str 0);
-    int_of_string (Str.matched_group 2 str)
+    ignore(Str.string_match (Lazy.force view_link_re) str 0);
+    int_of_string(Str.matched_group 2 str)
+let find_journal_link str =
+    ignore(Str.string_match (Lazy.force journal_link_re) str 0);
+    int_of_string(Str.matched_group 1 str)
 
 let url_of_submission id =
     Printf.sprintf "http://www.furaffinity.net/view/%d/" id
+let url_of_journal id =
+    Printf.sprintf "http://www.furaffinity.net/journal/%d/" id
 
 let get_submission fa id =
     login_if_necessary fa;
@@ -77,6 +95,7 @@ let get_submission fa id =
 
     let body = Buffer.contents buf in
     let html = Nethtml.parse (new Netchannels.input_string body) in
+    let html = Nethtml.decode html in
     let html_q() = ExtList.List.enum html in
 
     let html_title = Query.tag "title" (html_q()) in
@@ -132,5 +151,37 @@ let get_submission fa id =
         su_faves = faves;
         su_comments = comments;
         su_views = views
+    }
+
+let get_journal id =
+    let url = url_of_journal id in
+
+    let body = Http_client.Convenience.http_get url in
+    let html = Nethtml.parse (new Netchannels.input_string body) in
+    let html = Nethtml.decode html in
+    let html_q() = ExtList.List.enum html in
+
+    let html_title = Query.text(Query.tag "title" (html_q())) in
+    let title_re = lazy(Str.regexp
+        "\\(.*\\) -- \\([^']+\\)'s Journal -- Fur Affinity \\[dot\\] net") in
+    Std.print(html_title);
+    assert(Str.string_match (Lazy.force title_re) html_title 0);
+    let title = Str.matched_group 1 html_title in
+    let author = Str.matched_group 2 html_title in
+
+    let cats = Query.klass "cat" (html_q()) in
+    let comment_count_box = Query.get ~index:1 cats in
+    
+    let num_re = lazy(Str.regexp "[0-9]+") in
+    let comment_count_str = Query.text(Query.of_node comment_count_box) in
+    ignore(Str.search_forward (Lazy.force num_re) comment_count_str 0);
+    let comment_count = int_of_string(Str.matched_string comment_count_str) in
+
+    {
+        jo_id = id;
+        jo_url = url;
+        jo_title = title;
+        jo_author = author;
+        jo_comments = comment_count
     }
 

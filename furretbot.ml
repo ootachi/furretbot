@@ -41,6 +41,18 @@ let handle_art_sites fa conn msg =
         Std.print(target, response);
         Irc.send conn (Irc.MS_privmsg(target, response));
         true
+    | Irc.MS_privmsg(target, msg) when Fa.has_journal_link msg ->
+        let journal = Fa.get_journal (Fa.find_journal_link msg) in
+        let response = Printf.sprintf
+            "FA journal %d: %s by %s (%d comment%s)"
+            journal.Fa.jo_id
+            journal.Fa.jo_title
+            journal.Fa.jo_author
+            journal.Fa.jo_comments
+            (plural journal.Fa.jo_comments) in
+        Std.print(msg, target, response);
+        Irc.send conn (Irc.MS_privmsg(target, response));
+        true
     | Irc.MS_privmsg(target, msg) when Pixiv.has_view_link msg ->
         let illust = Pixiv.get_illust (Pixiv.find_view_link msg) in
         let response = Printf.sprintf
