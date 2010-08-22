@@ -123,6 +123,9 @@ let connect conn_info =
     let addr = hostent.Unix.h_addr_list.(0) in
     Unix.connect sock (Unix.ADDR_INET(addr, conn_info.ci_serverport));
 
+    Unix.setsockopt_float sock Unix.SO_RCVTIMEO (60.0 *. 5.0);
+    Unix.setsockopt_float sock Unix.SO_SNDTIMEO 60.0;
+
     ignore (recv sock);
 
     send sock (MS_nick conn_info.ci_nick);
