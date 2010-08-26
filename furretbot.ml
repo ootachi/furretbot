@@ -28,11 +28,18 @@ let handle_art_sites fa_creds conn msg =
     match msg with
     | Irc.MS_privmsg(target, msg) when Fa.has_view_link msg ->
         let sub = Fa.get_submission fa_creds (Fa.find_view_link msg) in
+        let rating =
+            match sub.Fa.su_rating with
+            | Fa.RA_general -> "safe"
+            | Fa.RA_mature -> "questionable"
+            | Fa.RA_explicit -> "explicit"
+        in
         let response = Printf.sprintf
-            "FA submission %d: %s by %s (%d view%s, %d fave%s)"
+            "FA submission %d: %s by %s (%s, %d view%s, %d fave%s)"
             sub.Fa.su_id
             sub.Fa.su_title
             sub.Fa.su_artist
+            rating
             sub.Fa.su_views
             (plural sub.Fa.su_views)
             sub.Fa.su_faves
