@@ -22,7 +22,6 @@ let handle_art_sites fa_creds conn msg =
             post.Danbooru.po_score
             (plural post.Danbooru.po_score)
         in
-        Std.print (msg, target, response);
         Irc.send conn (Irc.MS_privmsg(target, response))
     in
     match msg with
@@ -44,8 +43,6 @@ let handle_art_sites fa_creds conn msg =
             (plural sub.Fa.su_views)
             sub.Fa.su_faves
             (plural sub.Fa.su_faves) in
-        Std.print msg;
-        Std.print(target, response);
         Irc.send conn (Irc.MS_privmsg(target, response));
         true
     | Irc.MS_privmsg(target, msg) when Fa.has_journal_link msg ->
@@ -57,7 +54,6 @@ let handle_art_sites fa_creds conn msg =
             journal.Fa.jo_author
             journal.Fa.jo_comments
             (plural journal.Fa.jo_comments) in
-        Std.print(msg, target, response);
         Irc.send conn (Irc.MS_privmsg(target, response));
         true
     | Irc.MS_privmsg(target, msg) when Pixiv.has_view_link msg ->
@@ -69,8 +65,6 @@ let handle_art_sites fa_creds conn msg =
             (snd illust.Pixiv.il_title)
             (fst illust.Pixiv.il_artist)
             (snd illust.Pixiv.il_artist) in
-        Std.print msg;
-        Std.print(target, response);
         Irc.send conn (Irc.MS_privmsg(target, response));
         true
     | Irc.MS_privmsg(target, msg)
@@ -91,8 +85,6 @@ let handle_youtube conn msg =
             (plural video.Youtube.vi_views)
             video.Youtube.vi_favorites
             (plural video.Youtube.vi_favorites) in
-        Std.print msg;
-        Std.print(target, response);
         Irc.send conn (Irc.MS_privmsg(target, response));
         true
     | _ -> false
