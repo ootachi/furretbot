@@ -119,6 +119,13 @@ let main() =
     let conn_info = {
         Irc.ci_serverhost = config#getval "IRC" "serverhost";
         Irc.ci_serverport = int_of_string (config#getval "IRC" "serverport");
+        Irc.ci_password =
+            begin
+                try
+                    Some (config#getval "IRC" "password")
+                with
+                    Inifiles.Invalid_element _ -> None
+            end;
         Irc.ci_nick = config#getval "IRC" "nick";
         Irc.ci_username = config#getval "IRC" "username";
         Irc.ci_realname = config#getval "IRC" "realname";

@@ -6,6 +6,7 @@ exception Quit
 type conn_info = {
     ci_serverhost: string;
     ci_serverport: int;
+    ci_password: string option;
     ci_nick: string;
     ci_username: string;
     ci_realname: string;
@@ -20,6 +21,7 @@ type user_msg = {
 }
 
 type msg =
+| MS_pass of string
 | MS_nick of string
 | MS_user of user_msg
 | MS_join of string
@@ -34,6 +36,7 @@ type msg_with_sender = string * msg
 let deparse msg =
     let verb, args =
         match msg with
+        | MS_pass pass -> "PASS", [| pass |]
         | MS_nick nick -> "NICK", [| nick |]
         | MS_user user_msg ->
             "USER",
@@ -81,6 +84,7 @@ let parse str =
     Option.may (DynArray.add args) long_arg;
     try
         match verb with
+        | "PASS" -> MS_pass (DynArray.get args 0)
         | "NICK" -> MS_nick (DynArray.get args 0)
         | "USER" ->
             MS_user {
@@ -128,6 +132,7 @@ let connect conn_info =
 
     ignore (recv sock);
 
+    Option.may (fun pass -> send sock (MS_pass pass)) conn_info.ci_password;
     send sock (MS_nick conn_info.ci_nick);
     send sock (MS_user {
         um_username = conn_info.ci_username;
