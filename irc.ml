@@ -130,8 +130,6 @@ let connect conn_info =
     Unix.setsockopt_float sock Unix.SO_RCVTIMEO (60.0 *. 5.0);
     Unix.setsockopt_float sock Unix.SO_SNDTIMEO 60.0;
 
-    ignore (recv sock);
-
     Option.may (fun pass -> send sock (MS_pass pass)) conn_info.ci_password;
     send sock (MS_nick conn_info.ci_nick);
     send sock (MS_user {
@@ -140,6 +138,8 @@ let connect conn_info =
         um_servername = conn_info.ci_serverhost;
         um_realname = conn_info.ci_realname
     });
+
+    ignore (recv sock);
 
     let join chan = send sock (MS_join chan) in
     List.iter join conn_info.ci_autojoin;
