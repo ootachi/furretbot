@@ -1,13 +1,16 @@
 (* furretbot/furretbot.ml *)
 
-let truncate lyst max =
-    let rec recur lyst n =
-        match lyst with
-        | [] -> []
-        | _ when n == max -> [ "..." ]
-        | first::rest -> first::(recur rest (n + 1))
+let shuffle arr =
+    let len = Array.length arr in
+    let swap i j =
+        let tmp = arr.(i) in
+        arr.(i) <- arr.(j);
+        arr.(j) <- tmp
     in
-    recur lyst 0
+    let rand_between lo hi = lo + Random.int (hi - lo) in
+    for i = 0 to len - 2 do
+        swap i (rand_between (i + 1) len)
+    done
 
 let plural n = if n == 1 then "" else "s"
 
@@ -15,10 +18,20 @@ let handle_art_sites fa_creds conn msg =
     let handle_danbooru domain site_name target msg =
         let id = Danbooru.find_view_link domain msg in
         let post = Danbooru.get_post domain id in
-        let response = Printf.sprintf "%s post %d: %s (%d point%s)"
+        let tags = Array.of_list post.Danbooru.po_tags in
+        let tags, suffix =
+            if Array.length tags > 15 then
+                (Array.sub tags 0 15), ", ..."
+            else
+                tags, ""
+        in
+        shuffle tags;
+        Array.fast_sort String.compare tags;
+        let response = Printf.sprintf "%s post %d: %s%s (%d point%s)"
             site_name
             id
-            (String.concat ", " (truncate post.Danbooru.po_tags 15))
+            (String.concat ", " (Array.to_list tags))
+            suffix
             post.Danbooru.po_score
             (plural post.Danbooru.po_score)
         in
