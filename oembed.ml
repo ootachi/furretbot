@@ -1,22 +1,22 @@
-(* furretbot/embedly.ml *)
+(* furretbot/oembed.ml *)
 
 module B = Json_type.Browse
 
 exception Malformed
+exception No_provider
 
-type url = URL of string
-type html = HTML of string
+type url = string
+type html = string
 
-type 'a type_info = {
-    ti_src: 'a;
-    ti_width: int;
-    ti_height: int;
+type dimensions = {
+    di_width: int;
+    di_height: int;
 }
 
 type resource_type =
-| RT_photo of url type_info
-| RT_video of html type_info
-| RT_rich of html type_info
+| RT_photo of url * dimensions
+| RT_video of html * dimensions
+| RT_rich of html * dimensions
 | RT_link
 
 type response = {
@@ -33,10 +33,33 @@ type response = {
     re_description: string;
 }
 
-let url(URL str) = str
-let html(HTML str) = str
+type provider = {
+    pr_schemes: string list;
+    pr_endpoint: string;
+}
 
-let get ?max_width:max_width ?max_height:max_height url =
+let backslash_star = lazy(Str.regexp_string "\\*")
+
+let embedly = [
+    { pr_schemes = [ "*" ]; pr_endpoint = "http://api.embed.ly/v1/api/oembed" }
+]
+
+let provider_for_url ?providers:(providers=embedly) url =
+    try
+        List.find begin fun provider ->
+            List.exists begin fun scheme ->
+                let quoted = Str.quote scheme in
+                let re = Str.global_replace (Lazy.force backslash_star) ".*"
+                    quoted in
+                Str.string_match (Str.regexp re) url 0
+            end provider.pr_schemes
+        end providers
+    with Not_found -> raise No_provider
+
+let get ?providers:(providers=embedly) ?max_width:max_width
+        ?max_height:max_height url =
+    let provider = provider_for_url ~providers:providers url in
+
     let params = DynArray.create() in
     DynArray.add params ("url", url);
     DynArray.add params ("format", "json");
@@ -47,32 +70,26 @@ let get ?max_width:max_width ?max_height:max_height url =
     let query_string = Netencoding.Url.mk_url_encoded_parameters
         (DynArray.to_list params) in
     let body = Http_client.Convenience.http_get
-        ("http://api.embed.ly/v1/api/oembed?" ^ query_string) in
+        (provider.pr_endpoint ^ "?" ^ query_string) in
 
     let json = Json_io.json_of_string body in
     try
         let root = B.make_table (B.objekt json) in
+        let get_dimensions() =
+            {
+                di_width = B.int (B.field root "width");
+                di_height = B.int (B.field root "height")
+            }
+        in
         let resource_type =
             match B.string (B.field root "type") with
             | "photo" ->
-                RT_photo {
-                    ti_src = URL(B.string (B.field root "url"));
-                    ti_width = B.int (B.field root "width");
-                    ti_height = B.int (B.field root "height")
-                }
+                RT_photo(B.string (B.field root "url"), get_dimensions())
             | "video" ->
-                RT_video {
-                    ti_src = HTML(B.string (B.field root "html"));
-                    ti_width = B.int (B.field root "width");
-                    ti_height = B.int (B.field root "height")
-                }
+                RT_video(B.string (B.field root "html"), get_dimensions())
             | "link" -> RT_link
             | "rich" ->
-                RT_rich {
-                    ti_src = HTML(B.string (B.field root "html"));
-                    ti_width = B.int (B.field root "width");
-                    ti_height = B.int (B.field root "height")
-                }
+                RT_rich(B.string (B.field root "html"), get_dimensions())
             | _ -> raise Malformed
         in
         {
