@@ -1,6 +1,7 @@
 (* furretbot/oembed.ml *)
 
 module B = Json_type.Browse
+module Bu = Json_type.Build
 
 exception Malformed
 exception No_provider
@@ -44,18 +45,25 @@ let embedly = [
     { pr_schemes = [ "*" ]; pr_endpoint = "http://api.embed.ly/v1/api/oembed" }
 ]
 
+(**
+ * Returns the provider for the given URL. Raises [No_provider] if none of the
+ * URLs matched the provider.
+ *)
 let provider_for_url ?providers:(providers=embedly) url =
     try
         List.find begin fun provider ->
             List.exists begin fun scheme ->
-                let quoted = Str.quote scheme in
                 let re = Str.global_replace (Lazy.force backslash_star) ".*"
-                    quoted in
+                    (Str.quote scheme) in
                 Str.string_match (Str.regexp re) url 0
             end provider.pr_schemes
         end providers
     with Not_found -> raise No_provider
 
+(**
+ * Performs an oEmbed request (using [Http_client.Convenience.http_get]) to
+ * retrieve the embedded content for [url] and returns a [response] record.
+ *)
 let get ?providers:(providers=embedly) ?max_width:max_width
         ?max_height:max_height url =
     let provider = provider_for_url ~providers:providers url in
@@ -111,4 +119,48 @@ let get ?providers:(providers=embedly) ?max_width:max_width
             re_description = B.string (B.field root "description")
         }
     with Json_type.Json_error _ | Not_found -> raise Malformed
+
+(** Returns the given oEmbed response as a JSON string. *)
+let put response =
+    let result = DynArray.create() in
+    let add_dimensions dimensions =
+        DynArray.add result ("width", Bu.int dimensions.di_width);
+        DynArray.add result ("height", Bu.int dimensions.di_height)
+    in
+    let ty =
+        match response.re_type with
+        | RT_photo(url, dims) ->
+            add_dimensions dims;
+            DynArray.add result ("url", (Bu.string url));
+            "photo"
+        | RT_video(html, dims) ->
+            add_dimensions dims;
+            DynArray.add result ("html", (Bu.string html));
+            "video"
+        | RT_rich(html, dims) ->
+            add_dimensions dims;
+            DynArray.add result ("html", (Bu.string html));
+            "rich"
+        | RT_link -> "link" in
+    DynArray.add result ("type", (Bu.string ty));
+   
+    let add_string name =
+        Option.may (fun s -> DynArray.add result (name, (Bu.string s)))
+    in
+    let add_int name =
+        Option.may (fun n -> DynArray.add result (name, (Bu.int n)))
+    in
+
+    add_string "title" response.re_title;
+    add_string "author_name" response.re_author_name;
+    add_string "author_url" response.re_author_url;
+    add_string "provider_name" response.re_provider_name;
+    add_string "provider_url" response.re_provider_url;
+    add_int "cache_age" response.re_cache_age;
+    add_string "thumbnail_url" response.re_thumbnail_url;
+    add_int "thumbnail_width" response.re_thumbnail_width;
+    add_int "thumbnail_height" response.re_thumbnail_height;
+    DynArray.add result ("description", (Bu.string response.re_description));
+
+    Json_io.string_of_json (Bu.objekt (DynArray.to_list result))
 
