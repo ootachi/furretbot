@@ -14,7 +14,15 @@ let shuffle arr =
 
 let plural n = if n == 1 then "" else "s"
 
-let handle_art_sites fa_creds conn msg =
+(* TODO: multiple links in one message *)
+let url_re = lazy(Str.regexp "http://[ \t\n]+")
+let get_url str =
+    try
+        ignore(Str.search_forward (Lazy.force url_re) str 0);
+        Some(Str.matched_string str)
+    with Not_found -> None
+
+let handle_art_sites fa_creds da conn msg =
     let handle_danbooru domain site_name target msg =
         let id = Danbooru.find_view_link domain msg in
         let post = Danbooru.get_post domain id in
@@ -83,6 +91,14 @@ let handle_art_sites fa_creds conn msg =
     | Irc.MS_privmsg(target, msg)
             when Danbooru.has_view_link "wildcritters.ws" msg ->
         handle_danbooru "wildcritters.ws" "WildCritters" target msg; true
+    | Irc.MS_privmsg(target, msg) ->
+        begin
+            match get_url msg with
+            | Some url when Oembed.schemes_match da#schemes url ->
+                Irc.send conn (Irc.MS_privmsg(target, da#describe url));
+                true
+            | _ -> false
+        end
     | _ -> false
 
 let handle_youtube conn msg =
@@ -103,11 +119,12 @@ let handle_youtube conn msg =
     | _ -> false
 
 let run fa_info conn_info =
+    let da = new Deviantart.t in
     let sock = Irc.connect conn_info in
     try
         let handlers = [
             Irc.Bot.base_handler;
-            handle_art_sites fa_info;
+            handle_art_sites fa_info da;
             handle_youtube
         ] in
         Std.finally (fun() -> Irc.close sock) (Irc.Bot.run sock) handlers
