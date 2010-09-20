@@ -15,7 +15,7 @@ let shuffle arr =
 let plural n = if n == 1 then "" else "s"
 
 (* TODO: multiple links in one message *)
-let url_re = lazy(Str.regexp "http://[ \t\n]+")
+let url_re = lazy(Str.regexp "http://[^ \t\n]+")
 let get_url str =
     try
         ignore(Str.search_forward (Lazy.force url_re) str 0);
@@ -94,7 +94,7 @@ let handle_art_sites fa_creds da conn msg =
     | Irc.MS_privmsg(target, msg) ->
         begin
             match get_url msg with
-            | Some url when Oembed.schemes_match da#schemes url ->
+            | Some url when Oembed.schemes_match (da#schemes) url ->
                 Irc.send conn (Irc.MS_privmsg(target, da#describe url));
                 true
             | _ -> false
